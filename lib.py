@@ -1,6 +1,7 @@
 import bluetooth
 
 sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+
 def connect(address):
     global sock
     print('Connecting...')
