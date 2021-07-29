@@ -1,7 +1,9 @@
 import bluetooth
+import time
+from os import system 
+
 
 sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-
 def connect(address):
     global sock
     print('Connecting...')
@@ -11,7 +13,7 @@ def connect(address):
 
 def disconnect():
     global sock
-    sock.close
+    sock.close()
     
 def sendAction(action_name):
     global sock
@@ -19,6 +21,12 @@ def sendAction(action_name):
     action_name = [(x).to_bytes(1, byteorder='big') for x in action_name]
     msg = create_message(b'\x03',action_name)
     sock.send(msg)
+    ### Send check battery
+    msg = battery_message()
+    sock.send(msg)
+    system("clear")
+    # display status
+    checkStatus()
     
 def create_message(command,parameters):
     header = b'\xFB\xBF'
@@ -27,12 +35,52 @@ def create_message(command,parameters):
     length = bytes([len(parameters)+5])
     data = [command, length]
     data.extend(parameters)
-    total = 0
+    total=0
     for x in data:
         total += ord(x)
         total %= 256  
     check = bytes([total])
     return header+length+command+parameter+check+end
+
+#############################################################
+def checkStatus():
+    recived = sock.recv(1024) # Buffer size
+    print("STATUS:")
+    # refer to the data sheet
+    if b'\x03\x00' in recived:
+        print("Send action: Success")
+    if b'\x03\x01' in recived:
+        print("Send action: failure-empty file name")
+    if b'\x03\x02' in recived:
+        print("Battery capacity: low")
+    if b'\x03\x03' in recived:
+        print("Send action: error")
+    if b'\x18' in recived:
+        index = recived.index(b'\x18')
+        if b'\x01' in recived:
+            print(f"Battery capacity: charging, {recived[index + 4]}%")    
+        else:
+            print(f"Battery capacity: {recived[index + 4]}%")
+   
+
+
+def battery_message():
+#check for battery status
+    header = b'\xFB\xBF'
+    end = b'\xED'
+    length = bytes([len(b'\x00')+5])
+    data = [b'\x18', length]
+    param = b'\x00'
+    data.extend([param])
+    total = 0
+    for x in data:
+        total += ord(x)
+        total %= 256  
+    check = bytes([total])
+    
+    return header+length+b'\x18'+b'\x00'+check+end
+   
+############################################################### 
 
 
 
@@ -187,4 +235,3 @@ def turnLeft3():
     
 def turnRight3():
     sendAction('action/walk/turn_right.hts')
-        
